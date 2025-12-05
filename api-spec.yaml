@@ -1,0 +1,935 @@
+openapi: 3.0.3
+info:
+  title: Strava Event Hub API
+  description: API for managing Strava events, attendees, and event details
+  version: 0.0.1
+  contact:
+    name: Strava Event Hub Team
+    email: support@stravaeventhub.com
+
+servers:
+  - url: https://api.stravaeventhub.com/v1
+    description: Production server
+  - url: https://staging-api.stravaeventhub.com/v1
+    description: Staging server
+  - url: http://localhost:5000/v1
+    description: Local development server
+
+tags:
+  - name: Events
+    description: Event management operations
+  - name: Calendar
+    description: Calendar-based event queries
+  - name: Attendees
+    description: Event attendee management
+  - name: Photos
+    description: Event photo management
+  - name: Stats
+    description: Event statistics and analytics
+
+paths:
+  /events:
+    get:
+      tags:
+        - Events
+      summary: Get all events
+      description: Retrieve a list of all events with optional filtering
+      operationId: GetEvents
+      parameters:
+        - name: city
+          in: query
+          description: Filter events by city
+          required: false
+          schema:
+            type: string
+            example: "Warsaw"
+        - name: type
+          in: query
+          description: Filter events by type
+          required: false
+          schema:
+            $ref: '#/components/schemas/EventType'
+        - name: isPast
+          in: query
+          description: Filter by past or upcoming events
+          required: false
+          schema:
+            type: boolean
+        - name: startDate
+          in: query
+          description: Filter events starting from this date
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          description: Filter events up to this date
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          description: Maximum number of events to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of events to skip
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StravaEvent'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Events
+      summary: Create a new event
+      description: Create a new Strava event
+      operationId: CreateEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          description: Event created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StravaEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events/{eventId}:
+    get:
+      tags:
+        - Events
+      summary: Get event by ID
+      description: Retrieve a specific event by its ID
+      operationId: GetEventById
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: The event ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StravaEvent'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - Events
+      summary: Update event
+      description: Update an existing event
+      operationId: UpdateEvent
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: The event ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEventRequest'
+      responses:
+        '200':
+          description: Event updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StravaEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - Events
+      summary: Delete event
+      description: Delete an event by ID
+      operationId: DeleteEvent
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: The event ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Event deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /calendar/events:
+    get:
+      tags:
+        - Calendar
+      summary: Get events for date range
+      description: Fetch events within a specific date range
+      operationId: GetEventsForDateRange
+      parameters:
+        - name: start
+          in: query
+          required: true
+          description: Start date of the range
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          required: true
+          description: End date of the range
+          schema:
+            type: string
+            format: date-time
+        - name: city
+          in: query
+          description: Filter events by city
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StravaEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /calendar/events/{date}:
+    get:
+      tags:
+        - Calendar
+      summary: Get events for specific date
+      description: Fetch all events for a specific date
+      operationId: GetEventsForDate
+      parameters:
+        - name: date
+          in: path
+          required: true
+          description: The date to fetch events for
+          schema:
+            type: string
+            format: date
+        - name: city
+          in: query
+          description: Filter events by city
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StravaEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events/upcoming:
+    get:
+      tags:
+        - Events
+      summary: Get upcoming events
+      description: Fetch upcoming events ordered by date
+      operationId: GetUpcomingEvents
+      parameters:
+        - name: city
+          in: query
+          description: Filter events by city
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of events to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 5
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StravaEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events/{eventId}/attendees:
+    get:
+      tags:
+        - Attendees
+      summary: Get event attendees
+      description: Retrieve all attendees for a specific event
+      operationId: GetEventAttendees
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: The event ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attendee'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Attendees
+      summary: Add attendee to event
+      description: Add a new attendee to an event
+      operationId: AddAttendee
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: The event ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAttendeeRequest'
+      responses:
+        '201':
+          description: Attendee added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attendee'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events/{eventId}/attendees/{attendeeId}:
+    delete:
+      tags:
+        - Attendees
+      summary: Remove attendee from event
+      description: Remove an attendee from an event
+      operationId: RemoveAttendee
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: The event ID
+          schema:
+            type: string
+            format: uuid
+        - name: attendeeId
+          in: path
+          required: true
+          description: The attendee ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Attendee removed successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - Attendees
+      summary: Update attendee stats
+      description: Update attendee statistics for an event
+      operationId: UpdateAttendeeStats
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: The event ID
+          schema:
+            type: string
+            format: uuid
+        - name: attendeeId
+          in: path
+          required: true
+          description: The attendee ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttendeeStats'
+      responses:
+        '200':
+          description: Attendee stats updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attendee'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events/{eventId}/photos:
+    get:
+      tags:
+        - Photos
+      summary: Get event photos
+      description: Retrieve all photos for a specific event
+      operationId: GetEventPhotos
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: The event ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventPhoto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Photos
+      summary: Upload event photo
+      description: Upload a new photo to an event
+      operationId: UploadEventPhoto
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: The event ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                caption:
+                  type: string
+                  maxLength: 200
+      responses:
+        '201':
+          description: Photo uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventPhoto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events/{eventId}/photos/{photoId}:
+    delete:
+      tags:
+        - Photos
+      summary: Delete event photo
+      description: Delete a photo from an event
+      operationId: DeleteEventPhoto
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: The event ID
+          schema:
+            type: string
+            format: uuid
+        - name: photoId
+          in: path
+          required: true
+          description: The photo ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Photo deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events/{eventId}/stats:
+    get:
+      tags:
+        - Stats
+      summary: Get event statistics
+      description: Retrieve statistics for a specific event
+      operationId: GetEventStats
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: The event ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventStats'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    EventType:
+      type: string
+      enum:
+        - ride
+        - run
+        - swim
+      description: Type of the event
+
+    AttendeeStats:
+      type: object
+      properties:
+        distance:
+          type: number
+          format: double
+          description: Distance covered in kilometers
+          example: 45.5
+        duration:
+          type: integer
+          description: Duration in minutes
+          example: 125
+        calories:
+          type: integer
+          description: Calories burned
+          example: 890
+        avgSpeed:
+          type: number
+          format: double
+          description: Average speed in km/h
+          example: 21.6
+
+    Attendee:
+      type: object
+      required:
+        - id
+        - name
+        - avatar
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the attendee
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Full name of the attendee
+          example: "Alex Johnson"
+        avatar:
+          type: string
+          format: uri
+          description: URL to the attendee's avatar image
+          example: "https://example.com/avatars/alex.jpg"
+        stats:
+          $ref: '#/components/schemas/AttendeeStats'
+
+    EventPhoto:
+      type: object
+      required:
+        - id
+        - url
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the photo
+        url:
+          type: string
+          format: uri
+          description: URL to the photo
+          example: "https://example.com/photos/event123.jpg"
+        caption:
+          type: string
+          maxLength: 200
+          description: Optional caption for the photo
+          example: "Summit view"
+
+    EventStats:
+      type: object
+      properties:
+        totalDuration:
+          type: integer
+          description: Total duration in minutes
+          example: 125
+        avgSpeed:
+          type: number
+          format: double
+          description: Average speed in km/h
+          example: 21.8
+        totalCalories:
+          type: integer
+          description: Total calories burned by all participants
+          example: 3470
+        bestPerformer:
+          $ref: '#/components/schemas/Attendee'
+        mostConsistent:
+          $ref: '#/components/schemas/Attendee'
+
+    StravaEvent:
+      type: object
+      required:
+        - id
+        - title
+        - type
+        - date
+        - description
+        - location
+        - distance
+        - attendees
+        - isPast
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the event
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Event title
+          example: "Morning Mountain Ride"
+        type:
+          $ref: '#/components/schemas/EventType'
+        date:
+          type: string
+          format: date-time
+          description: Event date and time
+          example: "2025-12-15T09:00:00Z"
+        description:
+          type: string
+          maxLength: 2000
+          description: Detailed event description
+          example: "Challenging climb through scenic mountain trails"
+        location:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Event location
+          example: "Rocky Mountain Trail"
+        stravaRouteId:
+          type: string
+          nullable: true
+          description: Strava route ID if available
+          example: "3316227791849498836"
+        distance:
+          type: number
+          format: double
+          minimum: 0
+          description: Distance in kilometers
+          example: 45.5
+        elevationGain:
+          type: number
+          format: double
+          minimum: 0
+          nullable: true
+          description: Elevation gain in meters
+          example: 850
+        attendees:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attendee'
+          description: List of event attendees
+        isPast:
+          type: boolean
+          description: Indicates if the event is in the past
+          example: false
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventPhoto'
+          nullable: true
+          description: List of event photos
+        stats:
+          $ref: '#/components/schemas/EventStats'
+          nullable: true
+
+    CreateEventRequest:
+      type: object
+      required:
+        - title
+        - type
+        - date
+        - description
+        - location
+        - distance
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "Morning Mountain Ride"
+        type:
+          $ref: '#/components/schemas/EventType'
+        date:
+          type: string
+          format: date-time
+          example: "2025-12-15T09:00:00Z"
+        description:
+          type: string
+          maxLength: 2000
+          example: "Challenging climb through scenic mountain trails"
+        location:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "Rocky Mountain Trail"
+        stravaRouteId:
+          type: string
+          nullable: true
+          example: "3316227791849498836"
+        distance:
+          type: number
+          format: double
+          minimum: 0
+          example: 45.5
+        elevationGain:
+          type: number
+          format: double
+          minimum: 0
+          nullable: true
+          example: 850
+
+    UpdateEventRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        location:
+          type: string
+          minLength: 1
+          maxLength: 200
+        date:
+          type: string
+          format: date-time
+        distance:
+          type: number
+          format: double
+          minimum: 0
+        elevationGain:
+          type: number
+          format: double
+          minimum: 0
+          nullable: true
+        stravaRouteId:
+          type: string
+          nullable: true
+
+    CreateAttendeeRequest:
+      type: object
+      required:
+        - name
+        - avatar
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Alex Johnson"
+        avatar:
+          type: string
+          format: uri
+          example: "https://example.com/avatars/alex.jpg"
+
+    PaginationInfo:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items
+          example: 100
+        limit:
+          type: integer
+          description: Number of items per page
+          example: 20
+        offset:
+          type: integer
+          description: Number of items skipped
+          example: 0
+        hasMore:
+          type: boolean
+          description: Indicates if there are more items
+          example: true
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Invalid input data"
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "title"
+              message:
+                type: string
+                example: "Title is required"
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authentication token
+
+security:
+  - BearerAuth: []
