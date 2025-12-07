@@ -7,7 +7,7 @@
       "name": "Strava Event Hub Team",
       "email": "support@stravaeventhub.com"
     },
-    "version": "0.0.1"
+    "version": "1.0.0.0"
   },
   "paths": {
     "/v1/events/{eventId}/attendees": {
@@ -1218,6 +1218,7 @@
       },
       "CreateEventRequest": {
         "required": [
+          "city",
           "date",
           "description",
           "distance",
@@ -1247,6 +1248,11 @@
           },
           "location": {
             "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "city": {
+            "maxLength": 100,
             "minLength": 1,
             "type": "string"
           },
@@ -1463,6 +1469,10 @@
             "type": "string",
             "nullable": true
           },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
           "stravaRouteId": {
             "type": "string",
             "nullable": true
@@ -1516,6 +1526,12 @@
           },
           "location": {
             "maxLength": 200,
+            "minLength": 1,
+            "type": "string",
+            "nullable": true
+          },
+          "city": {
+            "maxLength": 100,
             "minLength": 1,
             "type": "string",
             "nullable": true
